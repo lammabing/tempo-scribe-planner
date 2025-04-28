@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -44,9 +43,7 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
@@ -79,6 +76,6 @@
   }
 
   .event-pill {
-    @apply px-2 py-0.5 rounded-full text-xs font-medium truncate bg-opacity-90;
+    @apply px-2 py-0.5 rounded-full text-xs font-medium truncate bg-opacity-90 text-black;
   }
 }

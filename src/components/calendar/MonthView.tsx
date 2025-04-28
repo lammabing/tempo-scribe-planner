@@ -57,7 +57,7 @@ const MonthView: React.FC = () => {
           const isToday = isSameDay(day, today);
           const isCurrentMonth = isSameMonth(day, selectedDate);
           const events = getEventsForDate(day);
-
+          
           return (
             <div
               key={day.toString()}

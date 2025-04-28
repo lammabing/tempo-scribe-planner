@@ -36,14 +36,14 @@ export const getNextOccurrence = (
 
   // For non-recurring events, just return the start date if it's after the specified date
   if (frequency === 'none') {
-    return isBefore(after, start) ? start : null;
+    return isBefore(after, start) || isSameDay(after, start) ? start : null;
   }
 
-  let nextDate = start;
+  let nextDate = new Date(start); // Create a copy of the start date
   let occurrenceCount = 0;
 
   // Find the next occurrence after the specified date
-  while (isBefore(nextDate, after) || isEqual(nextDate, after)) {
+  while (isBefore(nextDate, after) && !isSameDay(nextDate, after)) {
     occurrenceCount++;
 
     // Check if we've reached the recurrence end
@@ -82,33 +82,41 @@ export const getEventOccurrencesInRange = (
   end: Date,
 ): Date[] => {
   const occurrences: Date[] = [];
-  let currentDate = new Date(event.start);
   
   // For non-recurring events, just check if it falls within the range
   if (event.recurrence.frequency === 'none') {
-    if (isWithinInterval(event.start, { start, end }) || 
-        isEqual(event.start, start) || 
-        isEqual(event.start, end)) {
+    const eventDate = startOfDay(new Date(event.start));
+    const rangeStart = startOfDay(new Date(start));
+    const rangeEnd = startOfDay(new Date(end));
+    
+    if ((isWithinInterval(eventDate, { start: rangeStart, end: rangeEnd }) || 
+        isSameDay(eventDate, rangeStart) || 
+        isSameDay(eventDate, rangeEnd))) {
       occurrences.push(new Date(event.start));
     }
     return occurrences;
   }
   
   // For recurring events, find all occurrences within the range
-  let maxIterations = 1000; // Safety limit to prevent infinite loops
+  let currentDate = new Date(event.start);
+  let maxIterations = 366; // Safety limit to prevent infinite loops (one year of daily events max)
   
   while (maxIterations > 0) {
     maxIterations--;
     
-    // If we've gone past the end date, we're done
-    if (isBefore(end, currentDate)) {
-      break;
-    }
+    const currentDay = startOfDay(new Date(currentDate));
+    const rangeStart = startOfDay(new Date(start));
+    const rangeEnd = startOfDay(new Date(end));
     
     // If the current occurrence is within the range, add it
-    if ((isBefore(start, currentDate) || isEqual(start, currentDate)) && 
-        (isBefore(currentDate, end) || isEqual(currentDate, end))) {
+    if ((isBefore(rangeStart, currentDay) || isSameDay(rangeStart, currentDay)) && 
+        (isBefore(currentDay, rangeEnd) || isSameDay(currentDay, rangeEnd))) {
       occurrences.push(new Date(currentDate));
+    }
+    
+    // If we've gone past the end date, we're done
+    if (isBefore(rangeEnd, currentDay)) {
+      break;
     }
     
     // Move to the next occurrence
@@ -133,20 +141,36 @@ export const getEventsForDay = (
   day: Date
 ): CalendarEvent[] => {
   const eventsForDay: CalendarEvent[] = [];
+  const startOfSelectedDay = startOfDay(new Date(day));
   
   events.forEach(event => {
+    // For non-recurring events, directly check if it falls on this day
+    if (event.recurrence.frequency === 'none') {
+      const eventDay = startOfDay(new Date(event.start));
+      if (isSameDay(eventDay, startOfSelectedDay)) {
+        eventsForDay.push({...event});
+      }
+      return;
+    }
+    
+    // For recurring events, check if any occurrence falls on this day
     const occurrences = getEventOccurrencesInRange(
       event, 
-      startOfDay(day), 
-      startOfDay(day)
+      startOfSelectedDay, 
+      startOfSelectedDay
     );
     
     if (occurrences.length > 0) {
       occurrences.forEach(occurrence => {
+        // Create a copy of the event with the correct start/end times for this occurrence
+        const timeDiff = event.end.getTime() - event.start.getTime();
+        const occurrenceStart = new Date(occurrence);
+        const occurrenceEnd = new Date(occurrence.getTime() + timeDiff);
+        
         eventsForDay.push({
           ...event,
-          start: occurrence,
-          end: new Date(occurrence.getTime() + (event.end.getTime() - event.start.getTime()))
+          start: occurrenceStart,
+          end: occurrenceEnd
         });
       });
     }
@@ -166,10 +190,15 @@ export const getEventsForRange = (
     const occurrences = getEventOccurrencesInRange(event, start, end);
     
     occurrences.forEach(occurrence => {
+      // Create a copy of the event with the start/end times adjusted for this occurrence
+      const timeDiff = event.end.getTime() - event.start.getTime();
+      const occurrenceStart = new Date(occurrence);
+      const occurrenceEnd = new Date(occurrence.getTime() + timeDiff);
+      
       eventsInRange.push({
         ...event,
-        start: occurrence,
-        end: new Date(occurrence.getTime() + (event.end.getTime() - event.start.getTime()))
+        start: occurrenceStart,
+        end: occurrenceEnd
       });
     });
   });

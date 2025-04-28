@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, addMonths, addWeeks, addDays, subMonths, subWeeks, subDays } from 'date-fns';
 import { useCalendarContext } from '@/contexts/CalendarContext';
 import { Button } from '@/components/ui/button';
@@ -13,10 +13,17 @@ import { CalendarView } from '@/types/calendar';
 import { cn } from '@/lib/utils';
 
 const Calendar: React.FC = () => {
-  const { selectedDate, setSelectedDate, currentView, setCurrentView, selectedEvent } = useCalendarContext();
+  const { selectedDate, setSelectedDate, currentView, setCurrentView, selectedEvent, selectEvent } = useCalendarContext();
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+
+  // Monitor selectedEvent changes to update the details modal state
+  useEffect(() => {
+    if (selectedEvent) {
+      setIsEventDetailsOpen(true);
+    }
+  }, [selectedEvent]);
 
   const navigateToToday = () => {
     setSelectedDate(new Date());
@@ -51,6 +58,21 @@ const Calendar: React.FC = () => {
     setFormMode('edit');
     setIsEventDetailsOpen(false);
     setIsEventFormOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setIsEventDetailsOpen(false);
+    selectEvent(null); // Clear the selected event when closing details
+  };
+
+  const handleCloseForm = () => {
+    setIsEventFormOpen(false);
+    
+    // If an event is selected and we just closed the edit form,
+    // reopen the event details only if we're in edit mode
+    if (formMode === 'edit' && selectedEvent) {
+      setIsEventDetailsOpen(true);
+    }
   };
 
   return (
@@ -111,22 +133,14 @@ const Calendar: React.FC = () => {
       {/* Event Form Modal */}
       <EventForm
         isOpen={isEventFormOpen}
-        onClose={() => {
-          setIsEventFormOpen(false);
-          
-          // If an event is selected and we just closed the edit form,
-          // reopen the event details
-          if (formMode === 'edit' && selectedEvent) {
-            setIsEventDetailsOpen(true);
-          }
-        }}
+        onClose={handleCloseForm}
         mode={formMode}
       />
 
       {/* Event Details Modal */}
       <EventDetails
-        isOpen={isEventDetailsOpen || !!selectedEvent}
-        onClose={() => setIsEventDetailsOpen(false)}
+        isOpen={isEventDetailsOpen}
+        onClose={handleCloseDetails}
         onEdit={handleEditEvent}
       />
     </div>

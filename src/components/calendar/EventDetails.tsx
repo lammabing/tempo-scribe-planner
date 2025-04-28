@@ -50,7 +50,10 @@ const EventDetails: React.FC<EventDetailsProps> = ({ isOpen, onClose, onEdit }) 
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog 
+      open={isOpen && selectedEvent !== null} 
+      onOpenChange={(open) => !open && onClose()}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-start justify-between">

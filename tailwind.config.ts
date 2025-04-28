@@ -1,4 +1,3 @@
-
 import { type Config } from "tailwindcss";
 import { fontFamily } from "tailwindcss/defaultTheme";
 
@@ -55,11 +54,11 @@ const config = {
           foreground: "hsl(var(--card-foreground))",
         },
         calendar: {
-          primary: "#6366f1", // Indigo
-          "event-1": "#8b5cf6", // Violet/Purple
-          "event-2": "#10b981", // Emerald/Green
-          "event-3": "#f97316", // Orange
-          "event-4": "#3b82f6", // Blue
+          primary: "#1a365d", // Darker blue
+          "event-1": "#553c9a", // Darker violet/purple
+          "event-2": "#046c4e", // Darker emerald/green
+          "event-3": "#c05621", // Darker orange
+          "event-4": "#1e429f", // Darker blue
         },
       },
       borderRadius: {

@@ -79,6 +79,6 @@
   }
 
   .event-pill {
-    @apply px-2 py-0.5 rounded-full text-xs font-medium truncate;
+    @apply px-2 py-0.5 rounded-full text-xs font-medium truncate bg-opacity-90;
   }
 }

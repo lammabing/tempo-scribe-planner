@@ -18,6 +18,18 @@ export type ContactPerson = {
   phone?: string;
 };
 
+// Available colors for events with their display names
+export const EVENT_COLORS = [
+  { id: 'event-1', name: 'Purple', hex: '#8B5CF6' },
+  { id: 'event-2', name: 'Green', hex: '#10B981' },
+  { id: 'event-3', name: 'Orange', hex: '#F97316' },
+  { id: 'event-4', name: 'Blue', hex: '#0EA5E9' },
+  { id: 'event-5', name: 'Pink', hex: '#D946EF' },
+  { id: 'event-6', name: 'Red', hex: '#EF4444' },
+  { id: 'event-7', name: 'Teal', hex: '#14B8A6' },
+  { id: 'event-8', name: 'Amber', hex: '#F59E0B' }
+];
+
 export type CalendarEvent = {
   id: string;
   title: string;

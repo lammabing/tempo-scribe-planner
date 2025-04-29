@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { useCalendarContext } from '@/contexts/CalendarContext';
@@ -9,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { CalendarEvent, EventType, RecurrenceFrequency, CompletionStatus, ContactPerson } from '@/types/calendar';
+import { CalendarEvent, EventType, RecurrenceFrequency, CompletionStatus, ContactPerson, EVENT_COLORS } from '@/types/calendar';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -264,7 +263,11 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
     setEventData(prev => ({ ...prev, completed: !prev.completed }));
   };
 
-  // New handlers for the added fields
+  // New function for handling color selection
+  const handleColorSelection = (colorId: string) => {
+    setEventData(prev => ({ ...prev, color: colorId }));
+  };
+  
   const handleDeadlineChange = (date: Date | undefined) => {
     if (!date) {
       setEventData(prev => ({ ...prev, deadline: undefined }));
@@ -340,6 +343,12 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
       default: return null;
     }
   };
+  
+  // Get the selected color name for display
+  const getSelectedColorName = () => {
+    const color = EVENT_COLORS.find(c => c.id === eventData.color);
+    return color ? color.name : 'Purple';
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -381,12 +390,12 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
             
             <div>
               <Label>Color</Label>
-              <Select
-                value={eventData.color}
-                onValueChange={(value) => setEventData(prev => ({ ...prev, color: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select color">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full flex items-center justify-between"
+                  >
                     <div className="flex items-center">
                       <span 
                         className={cn(
@@ -394,32 +403,40 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                           "bg-calendar-" + eventData.color
                         )}
                       />
-                      {eventData.color === 'event-1' ? 'Purple' 
-                      : eventData.color === 'event-2' ? 'Green' 
-                      : eventData.color === 'event-3' ? 'Orange' 
-                      : 'Blue'}
+                      {getSelectedColorName()}
                     </div>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {['event-1', 'event-2', 'event-3', 'event-4'].map((color) => (
-                    <SelectItem key={color} value={color}>
-                      <div className="flex items-center">
-                        <span 
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Select event color</h4>
+                    <div className="grid grid-cols-4 gap-2">
+                      {EVENT_COLORS.map((color) => (
+                        <button
+                          key={color.id}
+                          type="button"
                           className={cn(
-                            "w-4 h-4 rounded-full mr-2", 
-                            "bg-calendar-" + color
+                            "w-10 h-10 rounded-full flex items-center justify-center border-2",
+                            eventData.color === color.id ? "border-primary" : "border-transparent",
+                            "hover:border-primary/50 transition-all"
                           )}
-                        />
-                        {color === 'event-1' ? 'Purple' 
-                        : color === 'event-2' ? 'Green' 
-                        : color === 'event-3' ? 'Orange' 
-                        : 'Blue'}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                          style={{
+                            backgroundColor: color.hex
+                          }}
+                          onClick={() => handleColorSelection(color.id)}
+                          aria-label={`Select ${color.name} color`}
+                          title={color.name}
+                        >
+                          {eventData.color === color.id && (
+                            <Check className="h-4 w-4 text-white" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           
@@ -523,7 +540,6 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
             </div>
           </div>
           
-          {/* New fields start here */}
           <div className="space-y-3 border-t pt-4 mt-3">
             <h3 className="font-medium">Additional Details</h3>
             

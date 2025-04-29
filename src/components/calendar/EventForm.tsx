@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { useCalendarContext } from '@/contexts/CalendarContext';
@@ -12,7 +13,7 @@ import { CalendarEvent, EventType, RecurrenceFrequency, CompletionStatus, Contac
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, CheckCircle, Trash2, Clock, X, MapPin, User } from 'lucide-react';
+import { CalendarIcon, Check, Trash2, Clock, X, MapPin, User } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
 

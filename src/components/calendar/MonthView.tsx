@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { format, isSameDay, isSameMonth, isAfter, isBefore } from 'date-fns';
 import { useCalendarContext } from '@/contexts/CalendarContext';
@@ -37,10 +36,8 @@ const MonthView: React.FC = () => {
         {displayEvents.map((event) => (
           <div
             key={event.id}
-            className={cn(
-              "event-pill bg-calendar-" + event.color,
-              "text-white cursor-pointer mb-1 animate-fade-in flex items-center justify-between"
-            )}
+            className="event-pill text-black cursor-pointer mb-1 animate-fade-in flex items-center justify-between"
+            style={{ backgroundColor: event.color }}
             onClick={(e) => {
               e.stopPropagation();
               selectEvent(event);

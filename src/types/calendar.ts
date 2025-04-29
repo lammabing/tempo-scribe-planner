@@ -20,14 +20,14 @@ export type ContactPerson = {
 
 // Available colors for events with their display names
 export const EVENT_COLORS = [
-  { id: 'event-1', name: 'Purple', hex: '#8B5CF6' },
-  { id: 'event-2', name: 'Green', hex: '#10B981' },
-  { id: 'event-3', name: 'Orange', hex: '#F97316' },
-  { id: 'event-4', name: 'Blue', hex: '#0EA5E9' },
-  { id: 'event-5', name: 'Pink', hex: '#D946EF' },
-  { id: 'event-6', name: 'Red', hex: '#EF4444' },
-  { id: 'event-7', name: 'Teal', hex: '#14B8A6' },
-  { id: 'event-8', name: 'Amber', hex: '#F59E0B' }
+  { id: 'purple', name: 'Purple', hex: '#8B5CF6' },
+  { id: 'green', name: 'Green', hex: '#10B981' },
+  { id: 'orange', name: 'Orange', hex: '#F97316' },
+  { id: 'blue', name: 'Blue', hex: '#0EA5E9' },
+  { id: 'pink', name: 'Pink', hex: '#D946EF' },
+  { id: 'red', name: 'Red', hex: '#EF4444' },
+  { id: 'teal', name: 'Teal', hex: '#14B8A6' },
+  { id: 'amber', name: 'Amber', hex: '#F59E0B' }
 ];
 
 export type CalendarEvent = {
@@ -38,7 +38,7 @@ export type CalendarEvent = {
   start: Date;
   end: Date;
   allDay: boolean;
-  color: string;
+  color: string; // This will now store the hex color directly
   recurrence: {
     frequency: RecurrenceFrequency;
     interval: number;

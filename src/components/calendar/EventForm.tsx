@@ -33,7 +33,7 @@ const initialEventState = (start: Date): Omit<CalendarEvent, 'id'> => {
     start,
     end: endTime,
     allDay: false,
-    color: 'event-1',
+    color: '#8B5CF6', // Default color (purple)
     recurrence: {
       frequency: 'none',
       interval: 1,
@@ -47,6 +47,7 @@ const initialEventState = (start: Date): Omit<CalendarEvent, 'id'> => {
 const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
   const { selectedDate, selectedEvent, addEvent, updateEvent, deleteEvent } = useCalendarContext();
   
+  // Update the initial state to use hex colors
   const [eventData, setEventData] = useState<Omit<CalendarEvent, 'id'>>(
     mode === 'edit' && selectedEvent 
       ? {
@@ -263,9 +264,9 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
     setEventData(prev => ({ ...prev, completed: !prev.completed }));
   };
 
-  // Function for handling color selection - fixed to update state correctly
-  const handleColorSelection = (colorId: string) => {
-    setEventData(prev => ({ ...prev, color: colorId }));
+  // Function for handling color selection - updated to use hex directly
+  const handleColorSelection = (hexColor: string) => {
+    setEventData(prev => ({ ...prev, color: hexColor }));
   };
   
   const handleDeadlineChange = (date: Date | undefined) => {
@@ -343,18 +344,6 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
       default: return null;
     }
   };
-  
-  // Get the selected color name for display
-  const getSelectedColorName = () => {
-    const color = EVENT_COLORS.find(c => c.id === eventData.color);
-    return color ? color.name : 'Purple';
-  };
-
-  // Get color hex value for a color ID
-  const getColorHex = (colorId: string) => {
-    const color = EVENT_COLORS.find(c => c.id === colorId);
-    return color ? color.hex : '#8B5CF6'; // Default to purple
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -404,10 +393,10 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                   >
                     <div className="flex items-center">
                       <span 
-                        className="w-4 h-4 rounded-full mr-2"
-                        style={{ backgroundColor: getColorHex(eventData.color) }}
+                        className="w-6 h-6 rounded-full mr-2"
+                        style={{ backgroundColor: eventData.color }}
                       />
-                      {getSelectedColorName()}
+                      {/* No text label here, just the color */}
                     </div>
                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                   </Button>
@@ -422,15 +411,15 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                           type="button"
                           className={cn(
                             "w-10 h-10 rounded-full flex items-center justify-center border-2",
-                            eventData.color === color.id ? "border-primary" : "border-transparent",
+                            eventData.color === color.hex ? "border-primary" : "border-transparent",
                             "hover:border-primary/50 transition-all"
                           )}
                           style={{ backgroundColor: color.hex }}
-                          onClick={() => handleColorSelection(color.id)}
+                          onClick={() => handleColorSelection(color.hex)}
                           aria-label={`Select ${color.name} color`}
                           title={color.name}
                         >
-                          {eventData.color === color.id && (
+                          {eventData.color === color.hex && (
                             <Check className="h-4 w-4 text-white" />
                           )}
                         </button>

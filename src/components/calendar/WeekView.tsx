@@ -30,6 +30,7 @@ const WeekView: React.FC = () => {
     return {
       top: `${startHour * 4}rem`,
       height: `${duration * 4}rem`,
+      backgroundColor: event.color
     };
   };
 
@@ -88,11 +89,7 @@ const WeekView: React.FC = () => {
                     .map(event => (
                       <div
                         key={event.id}
-                        className={cn(
-                          "absolute left-1 right-1 rounded-md p-1 overflow-hidden text-white text-xs",
-                          "bg-calendar-" + event.color,
-                          "cursor-pointer hover:opacity-90 transition-opacity"
-                        )}
+                        className="absolute left-1 right-1 rounded-md p-1 overflow-hidden text-black text-xs cursor-pointer hover:opacity-90 transition-opacity"
                         style={getEventStyle(event)}
                         onClick={() => selectEvent(event)}
                       >

@@ -1,16 +1,30 @@
 
 import React from 'react';
-import { format, isSameDay, isSameMonth } from 'date-fns';
+import { format, isSameDay, isSameMonth, isAfter, isBefore } from 'date-fns';
 import { useCalendarContext } from '@/contexts/CalendarContext';
 import { getDaysGrid } from '@/utils/date-utils';
 import { CalendarEvent } from '@/types/calendar';
 import { cn } from '@/lib/utils';
+import { Check, Clock, X } from 'lucide-react';
 
 const MonthView: React.FC = () => {
   const { selectedDate, setSelectedDate, getEventsForDate, selectEvent } = useCalendarContext();
   
   const days = getDaysGrid(selectedDate);
   const today = new Date();
+
+  const getEventIcon = (event: CalendarEvent) => {
+    if (event.status === 'completed' || event.completed) {
+      return <Check className="h-3 w-3 text-green-600" />;
+    } else if (event.status === 'overdue') {
+      return <Clock className="h-3 w-3 text-amber-600" />;
+    } else if (event.status === 'abandoned') {
+      return <X className="h-3 w-3 text-red-600" />;
+    } else if (event.deadline && isBefore(event.deadline, today)) {
+      return <Clock className="h-3 w-3 text-amber-600" />;
+    }
+    return null;
+  };
 
   const renderEvents = (date: Date, events: CalendarEvent[]) => {
     // Show at most 3 events and a "+X more" indicator
@@ -25,14 +39,15 @@ const MonthView: React.FC = () => {
             key={event.id}
             className={cn(
               "event-pill bg-calendar-" + event.color,
-              "text-white cursor-pointer mb-1 animate-fade-in"
+              "text-white cursor-pointer mb-1 animate-fade-in flex items-center justify-between"
             )}
             onClick={(e) => {
               e.stopPropagation();
               selectEvent(event);
             }}
           >
-            {event.title}
+            <span className="truncate">{event.title}</span>
+            {getEventIcon(event)}
           </div>
         ))}
         {moreCount > 0 && (

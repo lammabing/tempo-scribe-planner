@@ -9,6 +9,15 @@ export type RecurrenceEnd = {
   count?: number;
 };
 
+export type CompletionStatus = 'pending' | 'completed' | 'overdue' | 'abandoned';
+
+export type ContactPerson = {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+};
+
 export type CalendarEvent = {
   id: string;
   title: string;
@@ -25,6 +34,11 @@ export type CalendarEvent = {
     end: RecurrenceEnd;
   };
   completed?: boolean;
+  // New optional fields
+  deadline?: Date;
+  status?: CompletionStatus;
+  location?: string;
+  contactPersons?: ContactPerson[];
 };
 
 export type CalendarView = 'month' | 'week' | 'day';

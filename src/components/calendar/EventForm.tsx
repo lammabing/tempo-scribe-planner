@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { useCalendarContext } from '@/contexts/CalendarContext';
@@ -9,12 +8,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { CalendarEvent, EventType, RecurrenceFrequency } from '@/types/calendar';
+import { CalendarEvent, EventType, RecurrenceFrequency, CompletionStatus, ContactPerson } from '@/types/calendar';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, CheckCircle, Trash2 } from 'lucide-react';
+import { CalendarIcon, CheckCircle, Trash2, Clock, X, MapPin, User } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { v4 as uuidv4 } from 'uuid';
 
 interface EventFormProps {
   isOpen: boolean;
@@ -38,7 +38,9 @@ const initialEventState = (start: Date): Omit<CalendarEvent, 'id'> => {
       frequency: 'none',
       interval: 1,
       end: { type: 'never' }
-    }
+    },
+    status: 'pending',
+    contactPersons: []
   };
 };
 
@@ -56,10 +58,21 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
           allDay: selectedEvent.allDay,
           color: selectedEvent.color,
           recurrence: selectedEvent.recurrence,
-          completed: selectedEvent.completed
+          completed: selectedEvent.completed,
+          deadline: selectedEvent.deadline,
+          status: selectedEvent.status || 'pending',
+          location: selectedEvent.location || '',
+          contactPersons: selectedEvent.contactPersons || []
         }
       : initialEventState(selectedDate)
   );
+  
+  // State for new contact person form
+  const [newContact, setNewContact] = useState<{name: string, email: string, phone: string}>({
+    name: '',
+    email: '',
+    phone: ''
+  });
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -250,6 +263,50 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
     setEventData(prev => ({ ...prev, completed: !prev.completed }));
   };
 
+  // New handlers for the added fields
+  const handleDeadlineChange = (date: Date | undefined) => {
+    if (!date) {
+      setEventData(prev => ({ ...prev, deadline: undefined }));
+      return;
+    }
+    setEventData(prev => ({ ...prev, deadline: date }));
+  };
+  
+  const handleStatusChange = (value: string) => {
+    setEventData(prev => ({ ...prev, status: value as CompletionStatus }));
+  };
+
+  const handleAddContactPerson = () => {
+    if (!newContact.name.trim()) return;
+    
+    const newContactPerson: ContactPerson = {
+      id: uuidv4(),
+      name: newContact.name.trim(),
+      email: newContact.email.trim() || undefined,
+      phone: newContact.phone.trim() || undefined
+    };
+    
+    setEventData(prev => ({
+      ...prev,
+      contactPersons: [...(prev.contactPersons || []), newContactPerson]
+    }));
+    
+    // Reset the form
+    setNewContact({ name: '', email: '', phone: '' });
+  };
+  
+  const handleRemoveContactPerson = (id: string) => {
+    setEventData(prev => ({
+      ...prev,
+      contactPersons: (prev.contactPersons || []).filter(person => person.id !== id)
+    }));
+  };
+  
+  const handleContactInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewContact(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -271,6 +328,15 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
     if (mode === 'edit' && selectedEvent) {
       deleteEvent(selectedEvent.id);
       onClose();
+    }
+  };
+
+  const getStatusIcon = (status: CompletionStatus) => {
+    switch (status) {
+      case 'completed': return <Check className="h-4 w-4" />;
+      case 'overdue': return <Clock className="h-4 w-4" />;
+      case 'abandoned': return <X className="h-4 w-4" />;
+      default: return null;
     }
   };
 
@@ -456,8 +522,185 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
             </div>
           </div>
           
+          {/* New fields start here */}
+          <div className="space-y-3 border-t pt-4 mt-3">
+            <h3 className="font-medium">Additional Details</h3>
+            
+            {/* Deadline Field */}
+            <div className="space-y-2">
+              <Label>Deadline (Optional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className={cn("justify-start text-left w-full")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <span>
+                      {eventData.deadline 
+                        ? format(eventData.deadline, "MMM d, yyyy") 
+                        : "Set a deadline"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <div className="p-2 flex justify-between items-center border-b">
+                    <div className="text-sm font-medium">Deadline</div>
+                    {eventData.deadline && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 px-2" 
+                        onClick={() => handleDeadlineChange(undefined)}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <Calendar
+                    mode="single"
+                    selected={eventData.deadline}
+                    onSelect={handleDeadlineChange}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            {/* Status Field */}
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={eventData.status || 'pending'}
+                onValueChange={handleStatusChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status">
+                    <div className="flex items-center">
+                      {getStatusIcon(eventData.status as CompletionStatus)}
+                      <span className="ml-2">
+                        {eventData.status ? eventData.status.charAt(0).toUpperCase() + eventData.status.slice(1) : 'Pending'}
+                      </span>
+                    </div>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="completed">
+                    <div className="flex items-center">
+                      <Check className="h-4 w-4 mr-2 text-green-600" />
+                      Completed
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="overdue">
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-2 text-amber-600" />
+                      Overdue
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="abandoned">
+                    <div className="flex items-center">
+                      <X className="h-4 w-4 mr-2 text-red-600" />
+                      Abandoned
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Location Field */}
+            <div className="space-y-2">
+              <Label htmlFor="location">Location (Optional)</Label>
+              <div className="flex">
+                <div className="flex items-center px-3 bg-muted rounded-l-md border-y border-l">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <Input
+                  id="location"
+                  name="location"
+                  value={eventData.location || ''}
+                  onChange={handleInputChange}
+                  placeholder="Add location"
+                  className="rounded-l-none"
+                />
+              </div>
+            </div>
+            
+            {/* Contact Persons */}
+            <div className="space-y-3">
+              <Label>Contact Persons</Label>
+              
+              {/* List of added contacts */}
+              {(eventData.contactPersons || []).length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {(eventData.contactPersons || []).map(person => (
+                    <div 
+                      key={person.id} 
+                      className="flex items-center justify-between p-2 bg-muted rounded-md"
+                    >
+                      <div className="flex items-center">
+                        <User className="h-4 w-4 mr-2" />
+                        <div>
+                          <p className="font-medium">{person.name}</p>
+                          <div className="text-xs text-muted-foreground">
+                            {person.email && <span className="block">{person.email}</span>}
+                            {person.phone && <span>{person.phone}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleRemoveContactPerson(person.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Add new contact form */}
+              <div className="space-y-2 p-3 bg-muted/50 rounded-md">
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    name="name"
+                    value={newContact.name}
+                    onChange={handleContactInputChange}
+                    placeholder="Name"
+                  />
+                  <Input
+                    name="email"
+                    value={newContact.email}
+                    onChange={handleContactInputChange}
+                    placeholder="Email (optional)"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    name="phone"
+                    value={newContact.phone}
+                    onChange={handleContactInputChange}
+                    placeholder="Phone (optional)"
+                  />
+                  <Button 
+                    type="button" 
+                    onClick={handleAddContactPerson}
+                    disabled={!newContact.name.trim()}
+                    className="whitespace-nowrap"
+                    size="sm"
+                  >
+                    Add Contact
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           {/* Recurrence Settings */}
-          <div className="space-y-3">
+          <div className="space-y-3 border-t pt-4">
             <Label>Recurrence</Label>
             
             <Select

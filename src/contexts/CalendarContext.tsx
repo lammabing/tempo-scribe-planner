@@ -2,7 +2,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { addDays, addHours, startOfMonth } from 'date-fns';
-import { CalendarEvent, CalendarView, EventType, RecurrenceFrequency } from '@/types/calendar';
+import { CalendarEvent, CalendarView, EventType, RecurrenceFrequency, CompletionStatus } from '@/types/calendar';
 import { getEventsForDay, getEventsForRange } from '@/utils/date-utils';
 
 type CalendarContextType = {
@@ -46,6 +46,7 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ...event,
           start: new Date(event.start),
           end: new Date(event.end),
+          deadline: event.deadline ? new Date(event.deadline) : undefined,
           recurrence: {
             ...event.recurrence,
             end: {
@@ -72,6 +73,15 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           end: addHours(addDays(now, 1), 1),
           allDay: false,
           color: 'event-1',
+          location: 'Conference Room A',
+          status: 'pending',
+          contactPersons: [
+            {
+              id: uuidv4(),
+              name: 'John Smith',
+              email: 'john@example.com'
+            }
+          ],
           recurrence: {
             frequency: 'weekly',
             interval: 1,
@@ -90,6 +100,15 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           end: addHours(addDays(now, 3), 2),
           allDay: false,
           color: 'event-3',
+          location: 'Medical Center',
+          status: 'pending',
+          contactPersons: [
+            {
+              id: uuidv4(),
+              name: 'Dr. Johnson',
+              phone: '555-123-4567'
+            }
+          ],
           recurrence: {
             frequency: 'none',
             interval: 1,
@@ -107,6 +126,16 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           end: addDays(now, 7),
           allDay: true,
           color: 'event-2',
+          deadline: addDays(now, 7),
+          status: 'pending',
+          contactPersons: [
+            {
+              id: uuidv4(),
+              name: 'Sarah Lee',
+              email: 'sarah@example.com',
+              phone: '555-987-6543'
+            }
+          ],
           recurrence: {
             frequency: 'none',
             interval: 1,

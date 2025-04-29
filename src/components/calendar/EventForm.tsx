@@ -263,7 +263,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
     setEventData(prev => ({ ...prev, completed: !prev.completed }));
   };
 
-  // New function for handling color selection
+  // Function for handling color selection - fixed to update state correctly
   const handleColorSelection = (colorId: string) => {
     setEventData(prev => ({ ...prev, color: colorId }));
   };
@@ -350,6 +350,12 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
     return color ? color.name : 'Purple';
   };
 
+  // Get color hex value for a color ID
+  const getColorHex = (colorId: string) => {
+    const color = EVENT_COLORS.find(c => c.id === colorId);
+    return color ? color.hex : '#8B5CF6'; // Default to purple
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md md:max-w-lg">
@@ -398,10 +404,8 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                   >
                     <div className="flex items-center">
                       <span 
-                        className={cn(
-                          "w-4 h-4 rounded-full mr-2", 
-                          "bg-calendar-" + eventData.color
-                        )}
+                        className="w-4 h-4 rounded-full mr-2"
+                        style={{ backgroundColor: getColorHex(eventData.color) }}
                       />
                       {getSelectedColorName()}
                     </div>
@@ -421,9 +425,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                             eventData.color === color.id ? "border-primary" : "border-transparent",
                             "hover:border-primary/50 transition-all"
                           )}
-                          style={{
-                            backgroundColor: color.hex
-                          }}
+                          style={{ backgroundColor: color.hex }}
                           onClick={() => handleColorSelection(color.id)}
                           aria-label={`Select ${color.name} color`}
                           title={color.name}

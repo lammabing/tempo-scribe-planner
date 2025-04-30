@@ -19,12 +19,6 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
-} from '@/components/ui/accordion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface EventFormProps {
@@ -78,11 +72,10 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
       : initialEventState(selectedDate)
   );
   
-  // State for new contact person form
-  const [newContact, setNewContact] = useState<{name: string, email: string, phone: string}>({
+  // State for new participant form
+  const [newContact, setNewContact] = useState<{name: string, email: string}>({
     name: '',
-    email: '',
-    phone: ''
+    email: ''
   });
   
   // State for collapsible section
@@ -315,27 +308,26 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
   const handleStatusChange = (value: string) => {
     setEventData(prev => ({ ...prev, status: value as CompletionStatus }));
   };
-  
-  const handleAddContactPerson = () => {
+
+  const handleAddParticipant = () => {
     if (!newContact.name.trim()) return;
     
-    const newContactPerson: ContactPerson = {
+    const newParticipant: ContactPerson = {
       id: uuidv4(),
       name: newContact.name.trim(),
-      email: newContact.email.trim() || undefined,
-      phone: newContact.phone.trim() || undefined
+      email: newContact.email.trim() || undefined
     };
     
     setEventData(prev => ({
       ...prev,
-      contactPersons: [...(prev.contactPersons || []), newContactPerson]
+      contactPersons: [...(prev.contactPersons || []), newParticipant]
     }));
     
     // Reset the form
-    setNewContact({ name: '', email: '', phone: '' });
+    setNewContact({ name: '', email: '' });
   };
   
-  const handleRemoveContactPerson = (id: string) => {
+  const handleRemoveParticipant = (id: string) => {
     setEventData(prev => ({
       ...prev,
       contactPersons: (prev.contactPersons || []).filter(person => person.id !== id)
@@ -387,7 +379,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
           <DialogTitle>{mode === 'create' ? 'Add New Event' : 'Edit Event'}</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-2">
           {/* Title - no label */}
           <Input 
             name="title" 
@@ -395,17 +387,17 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
             onChange={handleInputChange} 
             placeholder="Add title" 
             required 
-            className="text-lg font-medium"
+            className="text-lg font-medium h-9"
           />
 
-          {/* Top Row: Event Type, Color, Recurrence, All-Day */}
+          {/* Top Row: Event Type, Color, Recurrence + All-Day */}
           <div className="grid grid-cols-3 gap-2">
             {/* Event Type - no label */}
             <Select 
               value={eventData.type} 
               onValueChange={(value) => setEventData(prev => ({ ...prev, type: value as EventType }))}
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-8">
                 <SelectValue placeholder="Event type" />
               </SelectTrigger>
               <SelectContent>
@@ -420,25 +412,25 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center justify-between"
+                  className="flex h-8 items-center justify-between"
                 >
                   <div className="flex items-center">
                     <span 
-                      className="w-5 h-5 rounded-full"
+                      className="w-4 h-4 rounded-full"
                       style={{ backgroundColor: eventData.color }}
                     />
                   </div>
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  <CalendarIcon className="ml-auto h-3.5 w-3.5 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 p-3">
+              <PopoverContent className="w-64 p-2">
                 <div className="grid grid-cols-4 gap-2">
                   {EVENT_COLORS.map((color) => (
                     <button
                       key={color.id}
                       type="button"
                       className={cn(
-                        "w-10 h-10 rounded-full flex items-center justify-center border-2",
+                        "w-8 h-8 rounded-full flex items-center justify-center border-2",
                         eventData.color === color.hex ? "border-primary" : "border-transparent",
                         "hover:border-primary/50 transition-all"
                       )}
@@ -448,7 +440,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                       title={color.name}
                     >
                       {eventData.color === color.hex && (
-                        <Check className="h-4 w-4 text-white" />
+                        <Check className="h-3 w-3 text-white" />
                       )}
                     </button>
                   ))}
@@ -456,14 +448,14 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
               </PopoverContent>
             </Popover>
             
-            {/* Recurrence and All-Day on same cell */}
+            {/* Recurrence and All-Day in same cell */}
             <div className="flex items-center gap-2">
               {/* Recurrence - no label */}
               <Select
                 value={eventData.recurrence.frequency}
                 onValueChange={handleRecurrenceFrequencyChange}
               >
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1 h-8">
                   <SelectValue placeholder="Repeat" />
                 </SelectTrigger>
                 <SelectContent>
@@ -476,30 +468,28 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
               </Select>
 
               {/* All-Day Switch */}
-              <div className="flex items-center">
-                <Switch 
-                  id="allDay" 
-                  checked={eventData.allDay} 
-                  onCheckedChange={handleAllDayChange}
-                  className="ml-1" 
-                />
-              </div>
+              <Switch 
+                id="allDay" 
+                checked={eventData.allDay} 
+                onCheckedChange={handleAllDayChange}
+                className="ml-1 h-5 w-9" 
+              />
             </div>
           </div>
           
           {/* Date & Time Section */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {/* Start Date/Time */}
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Start</div>
-              <div className="flex space-x-2">
+              <div className="text-xs text-muted-foreground mb-0.5">Start</div>
+              <div className="flex space-x-1">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
                       variant="outline" 
-                      className="justify-start text-left flex-1 text-sm py-1 px-2 h-9"
+                      className="justify-start text-left flex-1 text-xs py-1 px-2 h-8"
                     >
-                      <CalendarIcon className="mr-1 h-4 w-4" />
+                      <CalendarIcon className="mr-1 h-3.5 w-3.5" />
                       <span>{format(eventData.start, "MMM d, yyyy")}</span>
                     </Button>
                   </PopoverTrigger>
@@ -509,7 +499,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                       selected={eventData.start}
                       onSelect={handleStartChange}
                       initialFocus
-                      className="p-3 pointer-events-auto"
+                      className="p-2 pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
@@ -519,7 +509,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                     type="time"
                     value={format(eventData.start, "HH:mm")}
                     onChange={handleStartTimeChange}
-                    className="w-24 h-9"
+                    className="w-20 h-8 text-xs"
                   />
                 )}
               </div>
@@ -527,15 +517,15 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
             
             {/* End Date/Time */}
             <div>
-              <div className="text-xs text-muted-foreground mb-1">End</div>
-              <div className="flex space-x-2">
+              <div className="text-xs text-muted-foreground mb-0.5">End</div>
+              <div className="flex space-x-1">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
                       variant="outline" 
-                      className="justify-start text-left flex-1 text-sm py-1 px-2 h-9"
+                      className="justify-start text-left flex-1 text-xs py-1 px-2 h-8"
                     >
-                      <CalendarIcon className="mr-1 h-4 w-4" />
+                      <CalendarIcon className="mr-1 h-3.5 w-3.5" />
                       <span>{format(eventData.end, "MMM d, yyyy")}</span>
                     </Button>
                   </PopoverTrigger>
@@ -545,7 +535,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                       selected={eventData.end}
                       onSelect={handleEndChange}
                       initialFocus
-                      className="p-3 pointer-events-auto"
+                      className="p-2 pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
@@ -555,25 +545,25 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                     type="time"
                     value={format(eventData.end, "HH:mm")}
                     onChange={handleEndTimeChange}
-                    className="w-24 h-9"
+                    className="w-20 h-8 text-xs"
                   />
                 )}
               </div>
             </div>
           </div>
           
-          {/* Middle Row: Deadline and Status */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Deadline and Status Row */}
+          <div className="grid grid-cols-2 gap-2">
             {/* Deadline Field */}
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Deadline</div>
+              <div className="text-xs text-muted-foreground mb-0.5">Deadline</div>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button 
                     variant="outline" 
-                    className="justify-start text-left w-full text-sm py-1 px-2 h-9"
+                    className="justify-start text-left w-full text-xs py-1 px-2 h-8"
                   >
-                    <CalendarIcon className="mr-1 h-4 w-4" />
+                    <CalendarIcon className="mr-1 h-3.5 w-3.5" />
                     <span>
                       {eventData.deadline 
                         ? format(eventData.deadline, "MMM d, yyyy") 
@@ -582,13 +572,13 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <div className="p-2 flex justify-between items-center border-b">
-                    <div className="text-sm font-medium">Set Deadline</div>
+                  <div className="p-1.5 flex justify-between items-center border-b">
+                    <div className="text-xs font-medium">Set Deadline</div>
                     {eventData.deadline && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-8 px-2" 
+                        className="h-7 px-2 text-xs" 
                         onClick={() => handleDeadlineChange(undefined)}
                       >
                         Clear
@@ -600,7 +590,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                     selected={eventData.deadline}
                     onSelect={handleDeadlineChange}
                     initialFocus
-                    className="p-3 pointer-events-auto"
+                    className="p-2 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -608,12 +598,12 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
             
             {/* Status Field */}
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Status</div>
+              <div className="text-xs text-muted-foreground mb-0.5">Status</div>
               <Select
                 value={eventData.status || 'pending'}
                 onValueChange={handleStatusChange}
               >
-                <SelectTrigger className="text-sm py-1 px-2 h-9">
+                <SelectTrigger className="text-xs py-1 px-2 h-8">
                   <SelectValue placeholder="Select status">
                     <div className="flex items-center">
                       {getStatusIcon(eventData.status as CompletionStatus)}
@@ -627,19 +617,19 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="completed">
                     <div className="flex items-center">
-                      <Check className="h-4 w-4 mr-2 text-green-600" />
+                      <Check className="h-3.5 w-3.5 mr-1.5 text-green-600" />
                       Completed
                     </div>
                   </SelectItem>
                   <SelectItem value="overdue">
                     <div className="flex items-center">
-                      <AlertTriangle className="h-4 w-4 mr-2 text-amber-600" />
+                      <AlertTriangle className="h-3.5 w-3.5 mr-1.5 text-amber-600" />
                       Overdue
                     </div>
                   </SelectItem>
                   <SelectItem value="abandoned">
                     <div className="flex items-center">
-                      <X className="h-4 w-4 mr-2 text-red-600" />
+                      <X className="h-3.5 w-3.5 mr-1.5 text-red-600" />
                       Abandoned
                     </div>
                   </SelectItem>
@@ -652,53 +642,49 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
           <Collapsible
             open={isDetailsOpen}
             onOpenChange={setIsDetailsOpen}
-            className="border rounded-md p-2 space-y-3"
+            className="border rounded-md p-2 space-y-2 mt-1"
           >
-            <CollapsibleTrigger className="flex items-center justify-between w-full py-1">
+            <CollapsibleTrigger className="flex items-center justify-between w-full py-0.5">
               <span className="text-sm font-medium">Additional Details</span>
               {isDetailsOpen ? (
-                <ChevronUp className="h-4 w-4" />
+                <ChevronUp className="h-3.5 w-3.5" />
               ) : (
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-3.5 w-3.5" />
               )}
             </CollapsibleTrigger>
             
-            <CollapsibleContent className="space-y-3">
+            <CollapsibleContent className="space-y-3 pt-1">
               {/* Location Field */}
               <div>
-                <div className="text-xs text-muted-foreground mb-1">Location</div>
                 <div className="flex">
                   <div className="flex items-center px-2 bg-muted rounded-l-md border-y border-l">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                   <Input
                     name="location"
                     value={eventData.location || ''}
                     onChange={handleInputChange}
                     placeholder="Add location"
-                    className="rounded-l-none py-1 px-2 h-9"
+                    className="rounded-l-none py-1 px-2 h-8 text-sm"
                   />
                 </div>
               </div>
               
               {/* Description */}
-              <div>
-                <div className="text-xs text-muted-foreground mb-1">Description</div>
-                <Textarea
-                  name="description"
-                  value={eventData.description}
-                  onChange={handleInputChange}
-                  placeholder="Add description"
-                  rows={2}
-                  className="resize-none"
-                />
-              </div>
+              <Textarea
+                name="description"
+                value={eventData.description}
+                onChange={handleInputChange}
+                placeholder="Add description"
+                rows={2}
+                className="resize-none text-sm"
+              />
               
-              {/* Contact Persons */}
+              {/* Participants (renamed from Contact Persons) */}
               <div>
-                <div className="text-xs text-muted-foreground mb-1">Contact Persons</div>
+                <div className="text-xs text-muted-foreground mb-1">Participants</div>
                 
-                {/* List of added contacts */}
+                {/* List of added participants */}
                 {(eventData.contactPersons || []).length > 0 && (
                   <div className="space-y-1 mb-2">
                     {(eventData.contactPersons || []).map(person => (
@@ -707,81 +693,67 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                         className="flex items-center justify-between p-1 bg-muted rounded-md"
                       >
                         <div className="flex items-center">
-                          <User className="h-3 w-3 mr-2" />
+                          <User className="h-3 w-3 mr-1.5" />
                           <div>
-                            <p className="text-sm font-medium">{person.name}</p>
-                            <div className="text-xs text-muted-foreground">
-                              {person.email && <span className="block">{person.email}</span>}
-                              {person.phone && <span>{person.phone}</span>}
-                            </div>
+                            <p className="text-xs font-medium">{person.name}</p>
+                            {person.email && <p className="text-xs text-muted-foreground">{person.email}</p>}
                           </div>
                         </div>
                         <Button 
                           type="button" 
                           variant="ghost" 
                           size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => handleRemoveContactPerson(person.id)}
+                          className="h-5 w-5 p-0"
+                          onClick={() => handleRemoveParticipant(person.id)}
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-2.5 w-2.5" />
                         </Button>
                       </div>
                     ))}
                   </div>
                 )}
                 
-                {/* Add new contact form */}
-                <div className="space-y-1 p-2 bg-muted/50 rounded-md">
-                  <div className="grid grid-cols-2 gap-1">
-                    <Input
-                      name="name"
-                      value={newContact.name}
-                      onChange={handleContactInputChange}
-                      placeholder="Name"
-                      className="text-sm h-8"
-                    />
-                    <Input
-                      name="email"
-                      value={newContact.email}
-                      onChange={handleContactInputChange}
-                      placeholder="Email"
-                      className="text-sm h-8"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      name="phone"
-                      value={newContact.phone}
-                      onChange={handleContactInputChange}
-                      placeholder="Phone"
-                      className="text-sm h-8"
-                    />
-                    <Button 
-                      type="button" 
-                      onClick={handleAddContactPerson}
-                      disabled={!newContact.name.trim()}
-                      className="whitespace-nowrap h-8"
-                      size="sm"
-                    >
-                      Add
-                    </Button>
-                  </div>
+                {/* Add new participant form */}
+                <div className="flex items-center gap-1 mt-1">
+                  <Input
+                    name="name"
+                    value={newContact.name}
+                    onChange={handleContactInputChange}
+                    placeholder="Name"
+                    className="text-xs h-7 flex-1"
+                  />
+                  <Input
+                    name="email"
+                    value={newContact.email}
+                    onChange={handleContactInputChange}
+                    placeholder="Email"
+                    className="text-xs h-7 flex-1"
+                  />
+                  <Button 
+                    type="button" 
+                    onClick={handleAddParticipant}
+                    disabled={!newContact.name.trim()}
+                    className="h-7 text-xs"
+                    size="sm"
+                  >
+                    Add
+                  </Button>
                 </div>
               </div>
               
               {/* Recurrence Settings */}
               {eventData.recurrence.frequency !== 'none' && (
-                <div className="space-y-2 border-l-2 border-blue-200 pl-3 py-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">Every</span>
+                <div className="space-y-2 border-l-2 border-blue-200 pl-2 py-1 mt-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs">Every</span>
                     <Input
                       type="number"
                       min="1"
                       value={eventData.recurrence.interval}
                       onChange={handleRecurrenceIntervalChange}
-                      className="w-16 text-sm h-8"
+                      className="w-14 text-xs h-7"
                     />
-                    <span className="text-sm">
+                    <span className="text-xs">
                       {eventData.recurrence.frequency === 'daily' ? 'day(s)' :
                        eventData.recurrence.frequency === 'weekly' ? 'week(s)' :
                        eventData.recurrence.frequency === 'monthly' ? 'month(s)' : 'year(s)'}
@@ -789,20 +761,20 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                   </div>
                   
                   <div>
-                    <div className="text-xs text-muted-foreground mb-1">Ends</div>
+                    <div className="text-xs text-muted-foreground mb-0.5">Ends</div>
                     <Tabs value={eventData.recurrence.end.type} onValueChange={handleRecurrenceEndTypeChange}>
-                      <TabsList className="grid grid-cols-3 h-8">
-                        <TabsTrigger value="never" className="text-xs py-1">Never</TabsTrigger>
-                        <TabsTrigger value="until" className="text-xs py-1">On Date</TabsTrigger>
-                        <TabsTrigger value="count" className="text-xs py-1">After</TabsTrigger>
+                      <TabsList className="grid grid-cols-3 h-7">
+                        <TabsTrigger value="never" className="text-xs py-0.5">Never</TabsTrigger>
+                        <TabsTrigger value="until" className="text-xs py-0.5">On Date</TabsTrigger>
+                        <TabsTrigger value="count" className="text-xs py-0.5">After</TabsTrigger>
                       </TabsList>
                       
                       {eventData.recurrence.end.type === 'until' && (
                         <div className="mt-1">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-full justify-start text-sm py-1 px-2 h-8">
-                                <CalendarIcon className="mr-1 h-4 w-4" />
+                              <Button variant="outline" className="w-full justify-start text-xs py-1 px-2 h-7">
+                                <CalendarIcon className="mr-1 h-3.5 w-3.5" />
                                 <span>
                                   {eventData.recurrence.end.until ? 
                                     format(eventData.recurrence.end.until, "MMM d, yyyy") : 
@@ -817,7 +789,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                                 selected={eventData.recurrence.end.until}
                                 onSelect={handleRecurrenceUntilChange}
                                 initialFocus
-                                className="p-3 pointer-events-auto"
+                                className="p-2 pointer-events-auto"
                               />
                             </PopoverContent>
                           </Popover>
@@ -825,15 +797,15 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                       )}
                       
                       {eventData.recurrence.end.type === 'count' && (
-                        <div className="mt-1 flex items-center gap-2">
+                        <div className="mt-1 flex items-center gap-1.5">
                           <Input
                             type="number"
                             min="1"
                             value={eventData.recurrence.end.count || 1}
                             onChange={handleRecurrenceCountChange}
-                            className="w-16 text-sm h-8"
+                            className="w-14 text-xs h-7"
                           />
-                          <span className="text-sm">occurrence(s)</span>
+                          <span className="text-xs">occurrence(s)</span>
                         </div>
                       )}
                     </Tabs>
@@ -846,32 +818,44 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
           {/* Task-specific completed toggle */}
           {eventData.type === 'task' && (
             <div className="flex items-center space-x-2">
-              <Label htmlFor="completed" className="cursor-pointer text-sm">Completed</Label>
+              <Label htmlFor="completed" className="cursor-pointer text-xs">Completed</Label>
               <Switch
                 id="completed"
                 checked={!!eventData.completed}
                 onCheckedChange={handleToggleCompleted}
+                className="h-4 w-8"
               />
             </div>
           )}
           
-          <div className="flex justify-between pt-2">
+          <div className="flex justify-between pt-1.5">
             {mode === 'edit' && (
               <Button 
                 type="button" 
                 onClick={handleDelete} 
                 variant="destructive"
                 size="sm"
+                className="h-7 text-xs"
               >
-                <Trash2 className="h-4 w-4 mr-1" /> Delete
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
               </Button>
             )}
             
             <div className="ml-auto space-x-2">
-              <Button type="button" variant="outline" onClick={onClose} size="sm">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onClose} 
+                size="sm"
+                className="h-7 text-xs"
+              >
                 Cancel
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" size="sm">
+              <Button 
+                type="submit" 
+                className="bg-blue-600 hover:bg-blue-700 h-7 text-xs" 
+                size="sm"
+              >
                 {mode === 'create' ? 'Add' : 'Save'}
               </Button>
             </div>

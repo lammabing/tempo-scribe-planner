@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useCalendarContext } from '@/contexts/CalendarContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,9 +13,19 @@ import { CalendarEvent, EventType, RecurrenceFrequency, CompletionStatus, Contac
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Check, Trash2, Clock, X, MapPin, User } from 'lucide-react';
+import { 
+  CalendarIcon, Check, Trash2, Clock, X, MapPin, 
+  User, ChevronDown, ChevronUp, AlertTriangle
+} from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
+import { 
+  Accordion, 
+  AccordionContent, 
+  AccordionItem, 
+  AccordionTrigger 
+} from '@/components/ui/accordion';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface EventFormProps {
   isOpen: boolean;
@@ -47,7 +58,6 @@ const initialEventState = (start: Date): Omit<CalendarEvent, 'id'> => {
 const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
   const { selectedDate, selectedEvent, addEvent, updateEvent, deleteEvent } = useCalendarContext();
   
-  // Update the initial state to use hex colors
   const [eventData, setEventData] = useState<Omit<CalendarEvent, 'id'>>(
     mode === 'edit' && selectedEvent 
       ? {
@@ -75,6 +85,19 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
     phone: ''
   });
   
+  // State for collapsible section
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  
+  // Check if deadline is overdue
+  useEffect(() => {
+    if (eventData.deadline) {
+      const now = new Date();
+      if (now > eventData.deadline && eventData.status === 'pending') {
+        setEventData(prev => ({ ...prev, status: 'overdue' }));
+      }
+    }
+  }, [eventData.deadline]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setEventData(prev => ({ ...prev, [name]: value }));
@@ -274,11 +297,91 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
       setEventData(prev => ({ ...prev, deadline: undefined }));
       return;
     }
-    setEventData(prev => ({ ...prev, deadline: date }));
+    
+    // If deadline is in the past, set status to overdue
+    const now = new Date();
+    let newStatus = eventData.status;
+    if (date < now && newStatus === 'pending') {
+      newStatus = 'overdue';
+    }
+    
+    setEventData(prev => ({ 
+      ...prev, 
+      deadline: date,
+      status: newStatus
+    }));
   };
   
   const handleStatusChange = (value: string) => {
     setEventData(prev => ({ ...prev, status: value as CompletionStatus }));
+  };
+  
+  const handleRecurrenceFrequencyChange = (value: string) => {
+    setEventData(prev => ({
+      ...prev,
+      recurrence: {
+        ...prev.recurrence,
+        frequency: value as RecurrenceFrequency,
+      },
+    }));
+  };
+
+  const handleRecurrenceEndTypeChange = (value: string) => {
+    setEventData(prev => ({
+      ...prev,
+      recurrence: {
+        ...prev.recurrence,
+        end: {
+          ...prev.recurrence.end,
+          type: value as 'never' | 'until' | 'count',
+        },
+      },
+    }));
+  };
+
+  const handleRecurrenceUntilChange = (date: Date | undefined) => {
+    if (!date) return;
+    setEventData(prev => ({
+      ...prev,
+      recurrence: {
+        ...prev.recurrence,
+        end: {
+          ...prev.recurrence.end,
+          type: 'until',
+          until: date,
+        },
+      },
+    }));
+  };
+
+  const handleRecurrenceCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const count = parseInt(e.target.value, 10);
+    if (isNaN(count) || count < 1) return;
+    
+    setEventData(prev => ({
+      ...prev,
+      recurrence: {
+        ...prev.recurrence,
+        end: {
+          ...prev.recurrence.end,
+          type: 'count',
+          count,
+        },
+      },
+    }));
+  };
+
+  const handleRecurrenceIntervalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const interval = parseInt(e.target.value, 10);
+    if (isNaN(interval) || interval < 1) return;
+    
+    setEventData(prev => ({
+      ...prev,
+      recurrence: {
+        ...prev.recurrence,
+        interval,
+      },
+    }));
   };
 
   const handleAddContactPerson = () => {
@@ -339,7 +442,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
   const getStatusIcon = (status: CompletionStatus) => {
     switch (status) {
       case 'completed': return <Check className="h-4 w-4" />;
-      case 'overdue': return <Clock className="h-4 w-4" />;
+      case 'overdue': return <AlertTriangle className="h-4 w-4" />;
       case 'abandoned': return <X className="h-4 w-4" />;
       default: return null;
     }
@@ -352,120 +455,119 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
           <DialogTitle>{mode === 'create' ? 'Add New Event' : 'Edit Event'}</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="title">Title</Label>
-            <Input 
-              id="title" 
-              name="title" 
-              value={eventData.title} 
-              onChange={handleInputChange} 
-              placeholder="Add title" 
-              required 
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Title - no label */}
+          <Input 
+            name="title" 
+            value={eventData.title} 
+            onChange={handleInputChange} 
+            placeholder="Add title" 
+            required 
+            className="text-lg font-medium"
+          />
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Event Type</Label>
-              <Select 
-                value={eventData.type} 
-                onValueChange={(value) => setEventData(prev => ({ ...prev, type: value as EventType }))}
+          {/* Top Row: Event Type, Color, Recurrence, All-Day */}
+          <div className="grid grid-cols-3 gap-2">
+            {/* Event Type - no label */}
+            <Select 
+              value={eventData.type} 
+              onValueChange={(value) => setEventData(prev => ({ ...prev, type: value as EventType }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Event type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="event">Event</SelectItem>
+                <SelectItem value="task">Task</SelectItem>
+                <SelectItem value="appointment">Appointment</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Color - no label */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    <span 
+                      className="w-5 h-5 rounded-full"
+                      style={{ backgroundColor: eventData.color }}
+                    />
+                  </div>
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3">
+                <div className="grid grid-cols-4 gap-2">
+                  {EVENT_COLORS.map((color) => (
+                    <button
+                      key={color.id}
+                      type="button"
+                      className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center border-2",
+                        eventData.color === color.hex ? "border-primary" : "border-transparent",
+                        "hover:border-primary/50 transition-all"
+                      )}
+                      style={{ backgroundColor: color.hex }}
+                      onClick={() => handleColorSelection(color.hex)}
+                      aria-label={`Select ${color.name} color`}
+                      title={color.name}
+                    >
+                      {eventData.color === color.hex && (
+                        <Check className="h-4 w-4 text-white" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            {/* Recurrence and All-Day on same cell */}
+            <div className="flex items-center gap-2">
+              {/* Recurrence - no label */}
+              <Select
+                value={eventData.recurrence.frequency}
+                onValueChange={handleRecurrenceFrequencyChange}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Repeat" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="event">Event</SelectItem>
-                  <SelectItem value="task">Task</SelectItem>
-                  <SelectItem value="appointment">Appointment</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            
-            <div>
-              <Label>Color</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full flex items-center justify-between"
-                  >
-                    <div className="flex items-center">
-                      <span 
-                        className="w-6 h-6 rounded-full mr-2"
-                        style={{ backgroundColor: eventData.color }}
-                      />
-                      {/* No text label here, just the color */}
-                    </div>
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-3">
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Select event color</h4>
-                    <div className="grid grid-cols-4 gap-2">
-                      {EVENT_COLORS.map((color) => (
-                        <button
-                          key={color.id}
-                          type="button"
-                          className={cn(
-                            "w-10 h-10 rounded-full flex items-center justify-center border-2",
-                            eventData.color === color.hex ? "border-primary" : "border-transparent",
-                            "hover:border-primary/50 transition-all"
-                          )}
-                          style={{ backgroundColor: color.hex }}
-                          onClick={() => handleColorSelection(color.hex)}
-                          aria-label={`Select ${color.name} color`}
-                          title={color.name}
-                        >
-                          {eventData.color === color.hex && (
-                            <Check className="h-4 w-4 text-white" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="allDay" className="cursor-pointer">All Day</Label>
-            <Switch 
-              id="allDay" 
-              checked={eventData.allDay} 
-              onCheckedChange={handleAllDayChange} 
-            />
-            
-            {eventData.type === 'task' && (
-              <div className="ml-auto flex items-center space-x-2">
-                <Label htmlFor="completed" className="cursor-pointer">Completed</Label>
-                <Switch
-                  id="completed"
-                  checked={!!eventData.completed}
-                  onCheckedChange={handleToggleCompleted}
+
+              {/* All-Day Switch */}
+              <div className="flex items-center">
+                <Switch 
+                  id="allDay" 
+                  checked={eventData.allDay} 
+                  onCheckedChange={handleAllDayChange}
+                  className="ml-1" 
                 />
               </div>
-            )}
+            </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          {/* Date & Time Section */}
+          <div className="grid grid-cols-2 gap-3">
             {/* Start Date/Time */}
-            <div className="space-y-2">
-              <Label>Start</Label>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Start</div>
               <div className="flex space-x-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
                       variant="outline" 
-                      className={cn(
-                        "justify-start text-left",
-                        "flex-1"
-                      )}
+                      className="justify-start text-left flex-1 text-sm py-1 px-2 h-9"
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <CalendarIcon className="mr-1 h-4 w-4" />
                       <span>{format(eventData.start, "MMM d, yyyy")}</span>
                     </Button>
                   </PopoverTrigger>
@@ -485,26 +587,23 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                     type="time"
                     value={format(eventData.start, "HH:mm")}
                     onChange={handleStartTimeChange}
-                    className="w-24"
+                    className="w-24 h-9"
                   />
                 )}
               </div>
             </div>
             
             {/* End Date/Time */}
-            <div className="space-y-2">
-              <Label>End</Label>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">End</div>
               <div className="flex space-x-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
                       variant="outline" 
-                      className={cn(
-                        "justify-start text-left",
-                        "flex-1"
-                      )}
+                      className="justify-start text-left flex-1 text-sm py-1 px-2 h-9"
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <CalendarIcon className="mr-1 h-4 w-4" />
                       <span>{format(eventData.end, "MMM d, yyyy")}</span>
                     </Button>
                   </PopoverTrigger>
@@ -524,36 +623,35 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                     type="time"
                     value={format(eventData.end, "HH:mm")}
                     onChange={handleEndTimeChange}
-                    className="w-24"
+                    className="w-24 h-9"
                   />
                 )}
               </div>
             </div>
           </div>
           
-          <div className="space-y-3 border-t pt-4 mt-3">
-            <h3 className="font-medium">Additional Details</h3>
-            
+          {/* Middle Row: Deadline and Status */}
+          <div className="grid grid-cols-2 gap-3">
             {/* Deadline Field */}
-            <div className="space-y-2">
-              <Label>Deadline (Optional)</Label>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Deadline</div>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button 
                     variant="outline" 
-                    className={cn("justify-start text-left w-full")}
+                    className="justify-start text-left w-full text-sm py-1 px-2 h-9"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="mr-1 h-4 w-4" />
                     <span>
                       {eventData.deadline 
                         ? format(eventData.deadline, "MMM d, yyyy") 
-                        : "Set a deadline"}
+                        : "Optional"}
                     </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <div className="p-2 flex justify-between items-center border-b">
-                    <div className="text-sm font-medium">Deadline</div>
+                    <div className="text-sm font-medium">Set Deadline</div>
                     {eventData.deadline && (
                       <Button 
                         variant="ghost" 
@@ -577,17 +675,17 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
             </div>
             
             {/* Status Field */}
-            <div className="space-y-2">
-              <Label>Status</Label>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Status</div>
               <Select
                 value={eventData.status || 'pending'}
                 onValueChange={handleStatusChange}
               >
-                <SelectTrigger>
+                <SelectTrigger className="text-sm py-1 px-2 h-9">
                   <SelectValue placeholder="Select status">
                     <div className="flex items-center">
                       {getStatusIcon(eventData.status as CompletionStatus)}
-                      <span className="ml-2">
+                      <span className="ml-1">
                         {eventData.status ? eventData.status.charAt(0).toUpperCase() + eventData.status.slice(1) : 'Pending'}
                       </span>
                     </div>
@@ -603,7 +701,7 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                   </SelectItem>
                   <SelectItem value="overdue">
                     <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-amber-600" />
+                      <AlertTriangle className="h-4 w-4 mr-2 text-amber-600" />
                       Overdue
                     </div>
                   </SelectItem>
@@ -616,200 +714,214 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          
+          {/* Collapsible Details Section */}
+          <Collapsible
+            open={isDetailsOpen}
+            onOpenChange={setIsDetailsOpen}
+            className="border rounded-md p-2 space-y-3"
+          >
+            <CollapsibleTrigger className="flex items-center justify-between w-full py-1">
+              <span className="text-sm font-medium">Additional Details</span>
+              {isDetailsOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </CollapsibleTrigger>
             
-            {/* Location Field */}
-            <div className="space-y-2">
-              <Label htmlFor="location">Location (Optional)</Label>
-              <div className="flex">
-                <div className="flex items-center px-3 bg-muted rounded-l-md border-y border-l">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
+            <CollapsibleContent className="space-y-3">
+              {/* Location Field */}
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Location</div>
+                <div className="flex">
+                  <div className="flex items-center px-2 bg-muted rounded-l-md border-y border-l">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <Input
+                    name="location"
+                    value={eventData.location || ''}
+                    onChange={handleInputChange}
+                    placeholder="Add location"
+                    className="rounded-l-none py-1 px-2 h-9"
+                  />
                 </div>
-                <Input
-                  id="location"
-                  name="location"
-                  value={eventData.location || ''}
+              </div>
+              
+              {/* Description */}
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Description</div>
+                <Textarea
+                  name="description"
+                  value={eventData.description}
                   onChange={handleInputChange}
-                  placeholder="Add location"
-                  className="rounded-l-none"
+                  placeholder="Add description"
+                  rows={2}
+                  className="resize-none"
                 />
               </div>
-            </div>
-            
-            {/* Contact Persons */}
-            <div className="space-y-3">
-              <Label>Contact Persons</Label>
               
-              {/* List of added contacts */}
-              {(eventData.contactPersons || []).length > 0 && (
-                <div className="space-y-2 mb-3">
-                  {(eventData.contactPersons || []).map(person => (
-                    <div 
-                      key={person.id} 
-                      className="flex items-center justify-between p-2 bg-muted rounded-md"
-                    >
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 mr-2" />
-                        <div>
-                          <p className="font-medium">{person.name}</p>
-                          <div className="text-xs text-muted-foreground">
-                            {person.email && <span className="block">{person.email}</span>}
-                            {person.phone && <span>{person.phone}</span>}
+              {/* Contact Persons */}
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Contact Persons</div>
+                
+                {/* List of added contacts */}
+                {(eventData.contactPersons || []).length > 0 && (
+                  <div className="space-y-1 mb-2">
+                    {(eventData.contactPersons || []).map(person => (
+                      <div 
+                        key={person.id} 
+                        className="flex items-center justify-between p-1 bg-muted rounded-md"
+                      >
+                        <div className="flex items-center">
+                          <User className="h-3 w-3 mr-2" />
+                          <div>
+                            <p className="text-sm font-medium">{person.name}</p>
+                            <div className="text-xs text-muted-foreground">
+                              {person.email && <span className="block">{person.email}</span>}
+                              {person.phone && <span>{person.phone}</span>}
+                            </div>
                           </div>
                         </div>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleRemoveContactPerson(person.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleRemoveContactPerson(person.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+                
+                {/* Add new contact form */}
+                <div className="space-y-1 p-2 bg-muted/50 rounded-md">
+                  <div className="grid grid-cols-2 gap-1">
+                    <Input
+                      name="name"
+                      value={newContact.name}
+                      onChange={handleContactInputChange}
+                      placeholder="Name"
+                      className="text-sm h-8"
+                    />
+                    <Input
+                      name="email"
+                      value={newContact.email}
+                      onChange={handleContactInputChange}
+                      placeholder="Email"
+                      className="text-sm h-8"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      name="phone"
+                      value={newContact.phone}
+                      onChange={handleContactInputChange}
+                      placeholder="Phone"
+                      className="text-sm h-8"
+                    />
+                    <Button 
+                      type="button" 
+                      onClick={handleAddContactPerson}
+                      disabled={!newContact.name.trim()}
+                      className="whitespace-nowrap h-8"
+                      size="sm"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Recurrence Settings */}
+              {eventData.recurrence.frequency !== 'none' && (
+                <div className="space-y-2 border-l-2 border-blue-200 pl-3 py-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Every</span>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={eventData.recurrence.interval}
+                      onChange={handleRecurrenceIntervalChange}
+                      className="w-16 text-sm h-8"
+                    />
+                    <span className="text-sm">
+                      {eventData.recurrence.frequency === 'daily' ? 'day(s)' :
+                       eventData.recurrence.frequency === 'weekly' ? 'week(s)' :
+                       eventData.recurrence.frequency === 'monthly' ? 'month(s)' : 'year(s)'}
+                    </span>
+                  </div>
+                  
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Ends</div>
+                    <Tabs value={eventData.recurrence.end.type} onValueChange={handleRecurrenceEndTypeChange}>
+                      <TabsList className="grid grid-cols-3 h-8">
+                        <TabsTrigger value="never" className="text-xs py-1">Never</TabsTrigger>
+                        <TabsTrigger value="until" className="text-xs py-1">On Date</TabsTrigger>
+                        <TabsTrigger value="count" className="text-xs py-1">After</TabsTrigger>
+                      </TabsList>
+                      
+                      {eventData.recurrence.end.type === 'until' && (
+                        <div className="mt-1">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start text-sm py-1 px-2 h-8">
+                                <CalendarIcon className="mr-1 h-4 w-4" />
+                                <span>
+                                  {eventData.recurrence.end.until ? 
+                                    format(eventData.recurrence.end.until, "MMM d, yyyy") : 
+                                    "Select end date"
+                                  }
+                                </span>
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={eventData.recurrence.end.until}
+                                onSelect={handleRecurrenceUntilChange}
+                                initialFocus
+                                className="p-3 pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      )}
+                      
+                      {eventData.recurrence.end.type === 'count' && (
+                        <div className="mt-1 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            value={eventData.recurrence.end.count || 1}
+                            onChange={handleRecurrenceCountChange}
+                            className="w-16 text-sm h-8"
+                          />
+                          <span className="text-sm">occurrence(s)</span>
+                        </div>
+                      )}
+                    </Tabs>
+                  </div>
                 </div>
               )}
-              
-              {/* Add new contact form */}
-              <div className="space-y-2 p-3 bg-muted/50 rounded-md">
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    name="name"
-                    value={newContact.name}
-                    onChange={handleContactInputChange}
-                    placeholder="Name"
-                  />
-                  <Input
-                    name="email"
-                    value={newContact.email}
-                    onChange={handleContactInputChange}
-                    placeholder="Email (optional)"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    name="phone"
-                    value={newContact.phone}
-                    onChange={handleContactInputChange}
-                    placeholder="Phone (optional)"
-                  />
-                  <Button 
-                    type="button" 
-                    onClick={handleAddContactPerson}
-                    disabled={!newContact.name.trim()}
-                    className="whitespace-nowrap"
-                    size="sm"
-                  >
-                    Add Contact
-                  </Button>
-                </div>
-              </div>
+            </CollapsibleContent>
+          </Collapsible>
+          
+          {/* Task-specific completed toggle */}
+          {eventData.type === 'task' && (
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="completed" className="cursor-pointer text-sm">Completed</Label>
+              <Switch
+                id="completed"
+                checked={!!eventData.completed}
+                onCheckedChange={handleToggleCompleted}
+              />
             </div>
-          </div>
-          
-          {/* Recurrence Settings */}
-          <div className="space-y-3 border-t pt-4">
-            <Label>Recurrence</Label>
-            
-            <Select
-              value={eventData.recurrence.frequency}
-              onValueChange={handleRecurrenceFrequencyChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Does not repeat" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Does not repeat</SelectItem>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="yearly">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {eventData.recurrence.frequency !== 'none' && (
-              <div className="space-y-3 mt-2 border-l-2 border-blue-200 pl-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Label className="min-w-20">Every</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={eventData.recurrence.interval}
-                    onChange={handleRecurrenceIntervalChange}
-                    className="w-16"
-                  />
-                  <span className="text-sm">
-                    {eventData.recurrence.frequency === 'daily' ? 'day(s)' :
-                     eventData.recurrence.frequency === 'weekly' ? 'week(s)' :
-                     eventData.recurrence.frequency === 'monthly' ? 'month(s)' : 'year(s)'}
-                  </span>
-                </div>
-                
-                <div className="space-y-3">
-                  <Label>Ends</Label>
-                  <Tabs value={eventData.recurrence.end.type} onValueChange={handleRecurrenceEndTypeChange}>
-                    <TabsList className="grid grid-cols-3">
-                      <TabsTrigger value="never">Never</TabsTrigger>
-                      <TabsTrigger value="until">On Date</TabsTrigger>
-                      <TabsTrigger value="count">After</TabsTrigger>
-                    </TabsList>
-                    
-                    {eventData.recurrence.end.type === 'until' && (
-                      <div className="mt-2">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start">
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              <span>
-                                {eventData.recurrence.end.until ? 
-                                  format(eventData.recurrence.end.until, "MMM d, yyyy") : 
-                                  "Select end date"
-                                }
-                              </span>
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={eventData.recurrence.end.until}
-                              onSelect={handleRecurrenceUntilChange}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    )}
-                    
-                    {eventData.recurrence.end.type === 'count' && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={eventData.recurrence.end.count || 1}
-                          onChange={handleRecurrenceCountChange}
-                          className="w-16"
-                        />
-                        <span className="text-sm">occurrence(s)</span>
-                      </div>
-                    )}
-                  </Tabs>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div>
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              name="description"
-              value={eventData.description}
-              onChange={handleInputChange}
-              placeholder="Add description"
-              rows={3}
-            />
-          </div>
+          )}
           
           <div className="flex justify-between pt-2">
             {mode === 'edit' && (
@@ -824,10 +936,10 @@ const EventForm: React.FC<EventFormProps> = ({ isOpen, onClose, mode }) => {
             )}
             
             <div className="ml-auto space-x-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={onClose} size="sm">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" size="sm">
                 {mode === 'create' ? 'Add' : 'Save'}
               </Button>
             </div>

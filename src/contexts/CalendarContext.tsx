@@ -1,11 +1,16 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { addDays, addHours, startOfMonth, isAfter, subWeeks } from 'date-fns';
 import { CalendarEvent, CalendarView, EventType, RecurrenceFrequency, CompletionStatus } from '@/types/calendar';
 import { getEventsForDay } from '@/utils/date-utils';
 import { useAuth } from './AuthContext';
-import { saveEventsLocally as saveEvents, getEventsLocally as getEvents, saveLastSyncTimestamp, getLastSyncTimestamp } from '@/utils/storage-utils';
+import { 
+  saveEventsLocally, 
+  getEventsLocally, 
+  saveLastSyncTimestamp, 
+  getLastSyncTimestamp,
+  syncEventsWithSupabase
+} from '@/utils/storage-utils';
 import { useToast } from '@/components/ui/use-toast';
 
 type CalendarContextType = {
@@ -55,7 +60,7 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsLoading(true);
     
     try {
-      const storedEvents = getEvents();
+      const storedEvents = getEventsLocally();
       setEvents(storedEvents.length > 0 ? storedEvents : generateSampleEvents());
       
       const lastSyncTime = getLastSyncTimestamp();
@@ -78,7 +83,7 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Save events to localStorage whenever they change
   useEffect(() => {
     if (!isLoading) {
-      saveEvents(events);
+      saveEventsLocally(events);
     }
   }, [events, isLoading]);
 
@@ -221,7 +226,7 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSelectedEvent(event);
   };
   
-  // Mock sync function - replace with actual API calls when backend is ready
+  // Updated sync function to use Supabase
   const syncEvents = async () => {
     if (!isAuthenticated || !user) {
       toast({
@@ -235,24 +240,22 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsSyncing(true);
     
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const result = await syncEventsWithSupabase(user.id, events);
       
-      // In a real app, you would:
-      // 1. Get last sync timestamp
-      // 2. Send local events that have changed since last sync
-      // 3. Get server events that have changed since last sync
-      // 4. Merge events with conflict resolution
-      
-      // For now, we'll just pretend we've synced successfully
-      const now = new Date();
-      saveLastSyncTimestamp();
-      setLastSynced(now);
-      
-      toast({
-        title: "Sync complete",
-        description: `Your calendar has been synced successfully at ${now.toLocaleTimeString()}.`,
-      });
+      if (result.success) {
+        setEvents(result.events);
+        
+        const now = new Date();
+        saveLastSyncTimestamp();
+        setLastSynced(now);
+        
+        toast({
+          title: "Sync complete",
+          description: `Your calendar has been synced successfully at ${now.toLocaleTimeString()}.`,
+        });
+      } else {
+        throw new Error(result.error || 'Sync failed');
+      }
     } catch (error) {
       toast({
         title: "Sync failed",

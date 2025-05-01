@@ -5,7 +5,7 @@ import { addDays, addHours, startOfMonth, isAfter, subWeeks } from 'date-fns';
 import { CalendarEvent, CalendarView, EventType, RecurrenceFrequency, CompletionStatus } from '@/types/calendar';
 import { getEventsForDay } from '@/utils/date-utils';
 import { useAuth } from './AuthContext';
-import { saveEvents, getEvents, saveLastSyncTimestamp, getLastSyncTimestamp } from '@/utils/storage-utils';
+import { saveEventsLocally as saveEvents, getEventsLocally as getEvents, saveLastSyncTimestamp, getLastSyncTimestamp } from '@/utils/storage-utils';
 import { useToast } from '@/components/ui/use-toast';
 
 type CalendarContextType = {

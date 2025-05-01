@@ -1,58 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserCredentials, UserPreferences, AuthState, AuthContextType } from '@/types/auth';
-import { saveAuthToken, getAuthToken, removeAuthToken, saveUser, getUser, removeUser } from '@/utils/storage-utils';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
-import { v4 as uuidv4 } from 'uuid';
-
-// Mock API functions - replace with actual API calls when backend is available
-const mockLogin = async (credentials: UserCredentials): Promise<{ user: User; token: string }> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // For demo, just check if email is registered in localStorage
-  const storedUser = localStorage.getItem(`user_${credentials.email}`);
-  
-  if (storedUser) {
-    const user = JSON.parse(storedUser);
-    // Very basic password check - NEVER do this in production!
-    if (localStorage.getItem(`pwd_${credentials.email}`) === credentials.password) {
-      user.lastLogin = new Date();
-      localStorage.setItem(`user_${credentials.email}`, JSON.stringify(user));
-      return { user, token: `mock-token-${uuidv4()}` };
-    }
-  }
-  
-  throw new Error('Invalid email or password');
-};
-
-const mockRegister = async (credentials: UserCredentials, userData?: Partial<User>): Promise<{ user: User; token: string }> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Check if user already exists
-  if (localStorage.getItem(`user_${credentials.email}`)) {
-    throw new Error('Email already registered');
-  }
-  
-  // Create new user
-  const now = new Date();
-  const user: User = {
-    id: uuidv4(),
-    email: credentials.email,
-    firstName: userData?.firstName || '',
-    lastName: userData?.lastName || '',
-    createdAt: now,
-    lastLogin: now,
-    preferences: userData?.preferences || {},
-  };
-  
-  // Store user and password (NEVER do this in production!)
-  localStorage.setItem(`user_${credentials.email}`, JSON.stringify(user));
-  localStorage.setItem(`pwd_${credentials.email}`, credentials.password);
-  
-  return { user, token: `mock-token-${uuidv4()}` };
-};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -75,41 +25,116 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check for existing session on mount
   useEffect(() => {
-    const token = getAuthToken();
-    const user = getUser();
-    
-    if (token && user) {
-      setState({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      });
-    } else {
-      setState(prev => ({ ...prev, isLoading: false }));
-    }
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          throw error;
+        }
+
+        if (session) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileError) {
+            console.error('Error fetching user profile:', profileError);
+          }
+
+          const user: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            firstName: profile?.first_name || '',
+            lastName: profile?.last_name || '',
+            createdAt: profile ? new Date(profile.created_at) : new Date(),
+            lastLogin: profile ? new Date(profile.last_login) : new Date(),
+            preferences: profile?.preferences || {},
+          };
+
+          setState({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+        } else {
+          setState(prev => ({ ...prev, isLoading: false }));
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+        setState(prev => ({ ...prev, isLoading: false }));
+      }
+    };
+
+    checkSession();
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        // Update the profile's last_login time
+        await supabase
+          .from('profiles')
+          .update({ last_login: new Date().toISOString() })
+          .eq('id', session.user.id);
+
+        // Fetch user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        const user: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          firstName: profile?.first_name || '',
+          lastName: profile?.last_name || '',
+          createdAt: profile ? new Date(profile.created_at) : new Date(),
+          lastLogin: new Date(),
+          preferences: profile?.preferences || {},
+        };
+
+        setState({
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        });
+      } else if (event === 'SIGNED_OUT') {
+        setState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+        });
+      }
+    });
+
+    // Cleanup
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (credentials: UserCredentials) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const { user, token } = await mockLogin(credentials);
-      
-      // Save to localStorage
-      saveAuthToken(token);
-      saveUser(user);
-      
-      setState({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password,
       });
       
+      if (error) throw error;
+      
+      if (!data.user) throw new Error('User not found');
+
       toast({
         title: 'Login successful',
-        description: `Welcome back, ${user.firstName || user.email}!`,
+        description: `Welcome back!`,
       });
     } catch (error) {
       setState(prev => ({ 
@@ -130,22 +155,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const { user, token } = await mockRegister(credentials, userData);
-      
-      // Save to localStorage
-      saveAuthToken(token);
-      saveUser(user);
-      
-      setState({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: credentials.email,
+        password: credentials.password,
       });
+      
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Failed to create user');
+      
+      // Create user profile
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: authData.user.id,
+        email: authData.user.email || '',
+        first_name: userData?.firstName || '',
+        last_name: userData?.lastName || '',
+        created_at: new Date().toISOString(),
+        last_login: new Date().toISOString(),
+        preferences: userData?.preferences || {},
+      });
+      
+      if (profileError) throw profileError;
       
       toast({
         title: 'Registration successful',
-        description: `Welcome to TempoScribe, ${user.firstName || user.email}!`,
+        description: `Welcome to TempoScribe!`,
       });
     } catch (error) {
       setState(prev => ({ 
@@ -166,12 +199,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, isLoading: true }));
     
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { error } = await supabase.auth.signOut();
       
-      // Clear localStorage
-      removeAuthToken();
-      removeUser();
+      if (error) throw error;
       
       setState({
         user: null,
@@ -207,16 +237,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No user logged in');
       }
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+        })
+        .eq('id', state.user.id);
       
+      if (error) throw error;
+      
+      // Update local state with new profile data
       const updatedUser = {
         ...state.user,
         ...userData,
       };
-      
-      // Update in localStorage
-      saveUser(updatedUser);
       
       setState(prev => ({
         ...prev,
@@ -251,19 +286,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No user logged in');
       }
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Get current preferences
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', state.user.id)
+        .single();
       
-      const updatedUser = {
-        ...state.user,
-        preferences: {
-          ...state.user.preferences,
-          ...preferences,
-        },
+      const currentPreferences = profile?.preferences || {};
+      
+      // Merge with new preferences
+      const updatedPreferences = {
+        ...currentPreferences,
+        ...preferences,
       };
       
-      // Update in localStorage
-      saveUser(updatedUser);
+      // Update in database
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          preferences: updatedPreferences,
+        })
+        .eq('id', state.user.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      const updatedUser = {
+        ...state.user,
+        preferences: updatedPreferences,
+      };
       
       setState(prev => ({
         ...prev,

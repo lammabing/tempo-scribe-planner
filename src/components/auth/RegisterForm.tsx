@@ -48,6 +48,7 @@ const RegisterForm: React.FC = () => {
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             placeholder="John"
+            compact
           />
         </div>
         
@@ -58,6 +59,7 @@ const RegisterForm: React.FC = () => {
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             placeholder="Doe"
+            compact
           />
         </div>
       </div>
@@ -71,6 +73,7 @@ const RegisterForm: React.FC = () => {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="your@email.com"
           required
+          compact
         />
       </div>
       
@@ -83,6 +86,7 @@ const RegisterForm: React.FC = () => {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           required
+          compact
         />
       </div>
       
@@ -95,6 +99,7 @@ const RegisterForm: React.FC = () => {
           onChange={(e) => setConfirmPassword(e.target.value)}
           placeholder="••••••••"
           required
+          compact
         />
       </div>
       

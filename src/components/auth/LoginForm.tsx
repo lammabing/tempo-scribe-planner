@@ -29,6 +29,7 @@ const LoginForm: React.FC = () => {
           placeholder="your@email.com"
           required
           autoFocus
+          compact
         />
       </div>
       
@@ -41,6 +42,7 @@ const LoginForm: React.FC = () => {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           required
+          compact
         />
       </div>
       
